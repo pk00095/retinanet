@@ -52,6 +52,31 @@ def parse_tfrecords(filenames, batch_size, min_side=800, max_side=1333):
       #image.set_shape([None, None, 3])
       return image
 
+    def process_bboxes(bboxes, labels):
+        # tf.print(bboxes.shape, labels.shape)
+        # delete bboxes containing [-1,-1,-1,-1]
+        bboxes = bboxes[~np.all(bboxes==-1, axis=1)]
+        # delete labels containing[-1]
+        labels = labels[labels>-1]#[0]
+        print(bboxes.shape, labels.shape)
+
+        # generate anchorboxes and class labels
+
+        
+        return bboxes
+
+    @tf.function
+    def tf_process_bboxes(xmin_batch, ymin_batch, xmax_batch, ymax_batch, label_batch):
+
+        for index in range(batch_size):
+            xmins, ymins, xmaxs, ymaxs, labels = xmin_batch[index], ymin_batch[index], xmax_batch[index], ymax_batch[index], label_batch[index]
+            bboxes = tf.convert_to_tensor([xmins,ymins,xmaxs,ymaxs], dtype=tf.keras.backend.floatx())
+            bboxes = tf.transpose(bboxes)
+            bboxes = tf.numpy_function(process_bboxes, [bboxes, labels], Tout=tf.keras.backend.floatx())
+
+        #return bboxes
+        
+
     def _parse_function(serialized):
         """Summary
         
@@ -94,21 +119,22 @@ def parse_tfrecords(filenames, batch_size, min_side=800, max_side=1333):
         image_batch = tf.map_fn(lambda x: decode_pad_resize(x, max_height, max_width, scale), parsed_example['image/encoded'], dtype=tf.uint8)
         #print(scale)
 
-        xmin_batch = parsed_example['image/object/bbox/xmin']*scale
-        xmax_batch = parsed_example['image/object/bbox/xmax']*scale
-        ymin_batch = parsed_example['image/object/bbox/ymin']*scale
-        ymax_batch = parsed_example['image/object/bbox/ymax']*scale
+        xmin_batch = tf.sparse.to_dense(parsed_example['image/object/bbox/xmin']*scale, default_value=-1)
+        xmax_batch = tf.sparse.to_dense(parsed_example['image/object/bbox/xmax']*scale, default_value=-1)
+        ymin_batch = tf.sparse.to_dense(parsed_example['image/object/bbox/ymin']*scale, default_value=-1)
+        ymax_batch = tf.sparse.to_dense(parsed_example['image/object/bbox/ymax']*scale, default_value=-1)
 
         annotation_batch = []
 
-        label_batch = parsed_example['image/object/class/label']
+        label_batch = tf.sparse.to_dense(parsed_example['image/object/class/label'], default_value=-1)
 
-        print(xmin_batch.shape)
-        print(ymin_batch.shape)
-        print(xmax_batch.shape)
-        print(ymax_batch.shape)
-        print(label_batch.shape)
+        # tf.print(xmin_batch.shape)
+        # tf.print(ymin_batch.shape)
+        # tf.print(xmax_batch.shape)
+        # tf.print(ymax_batch.shape)
+        # tf.print(label_batch.shape)
 
+        tf_process_bboxes(xmin_batch,ymin_batch,xmax_batch,ymax_batch, label_batch)
 
         # create GT from annotations
         # augment image_batch
@@ -118,10 +144,12 @@ def parse_tfrecords(filenames, batch_size, min_side=800, max_side=1333):
         return image_batch #, {'regression':abxs, 'classification':lbls}
 
 
-    dataset = tf.data.Dataset.from_tensor_slices(filenames)
+    # dataset = tf.data.Dataset.from_tensor_slices(filenames).repeat(-1)
+    dataset = tf.data.Dataset.list_files(filenames, shuffle=True).repeat(-1)
     dataset = dataset.interleave(
       tf.data.TFRecordDataset, 
-      num_parallel_calls=tf.data.experimental.AUTOTUNE)
+      num_parallel_calls=tf.data.experimental.AUTOTUNE,
+      deterministic=False)
 
     dataset = dataset.batch(
       batch_size, 
@@ -137,23 +165,23 @@ def parse_tfrecords(filenames, batch_size, min_side=800, max_side=1333):
     #dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE) #.unbatch()
 
     #if self.shuffle:
-    dataset = dataset.repeat(-1) # Repeat the dataset this time
+    #dataset = dataset.repeat(-1) # Repeat the dataset this time
     dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
     return dataset
 
 
 if __name__ == '__main__':
-    filepath = os.path.join(os.getcwd(),'DATA','train*.tfrecord')
+    # filepath = os.path.join(os.getcwd(),'DATA','train*.tfrecord')
 
-    tfrecords = list(glob.glob(filepath))
-    print(tfrecords)
+    # tfrecords = list(glob.glob(filepath))
+    # print(tfrecords)
 
 
     dataset = parse_tfrecords(
-        filenames=tfrecords, 
+        filenames=os.path.join(os.getcwd(),'DATA','train*.tfrecord'), 
         batch_size=2)
 
     for data in dataset.take(5):
         data_decoded = data.numpy()
-        print(data_decoded.shape, data_decoded.dtype)
+        #print(data_decoded.shape, data_decoded.dtype)
