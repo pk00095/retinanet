@@ -19,6 +19,7 @@ def parse_tfrecords(
   filenames, 
   batch_size, 
   num_classes,
+  preprocess_fn=lambda x:x,
   sizes=AnchorParameters_default.sizes, 
   ratios=AnchorParameters_default.ratios, 
   scales=AnchorParameters_default.scales, 
@@ -51,7 +52,8 @@ def parse_tfrecords(
         padded_image = np.zeros(shape=(height.astype(int), width.astype(int),3), dtype=image.dtype)
         h,w,_ =  image.shape
         padded_image[:h,:w,:] = image
-        return cv2.resize(padded_image, None, fx=scale, fy=scale)
+        resized_image = cv2.resize(padded_image, None, fx=scale, fy=scale).astype(tf.keras.backend.floatx())
+        return preprocess_fn(resized_image)
 
     @tf.function
     def decode_pad_resize(image_string, pad_height, pad_width, scale):
@@ -67,7 +69,7 @@ def parse_tfrecords(
           tf.tensor: Description
       """
       image = tf.image.decode_jpeg(image_string)
-      image = tf.numpy_function(pad_resize, [image, pad_height, pad_width, scale], Tout=image.dtype)
+      image = tf.numpy_function(pad_resize, [image, pad_height, pad_width, scale], Tout=tf.keras.backend.floatx())
       #image.set_shape([None, None, 3])
       return image
 
@@ -162,7 +164,7 @@ def parse_tfrecords(
 
         scale = tf.cast(scale, tf.keras.backend.floatx()) 
 
-        image_batch = tf.map_fn(lambda x: decode_pad_resize(x, max_height, max_width, scale), parsed_example['image/encoded'], dtype=tf.uint8)
+        image_batch = tf.map_fn(lambda x: decode_pad_resize(x, max_height, max_width, scale), parsed_example['image/encoded'], dtype=tf.keras.backend.floatx())
         #print(scale)
 
         xmin_batch = tf.sparse.to_dense(parsed_example['image/object/bbox/xmin']*scale, default_value=-1)
@@ -191,7 +193,7 @@ def parse_tfrecords(
 
 
     # dataset = tf.data.Dataset.from_tensor_slices(filenames).repeat(-1)
-    dataset = tf.data.Dataset.list_files(filenames, shuffle=True).repeat(-1)
+    dataset = tf.data.Dataset.list_files(filenames).shuffle(buffer_size=256).repeat(-1)
     dataset = dataset.interleave(
       tf.data.TFRecordDataset, 
       num_parallel_calls=tf.data.experimental.AUTOTUNE,
@@ -204,14 +206,8 @@ def parse_tfrecords(
     dataset = dataset.map(
       _parse_function, 
       num_parallel_calls=tf.data.experimental.AUTOTUNE)
-    #dataset = dataset.batch(batch_size)    # Batch Size
 
     dataset = dataset.cache()
-
-    #dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE) #.unbatch()
-
-    #if self.shuffle:
-    #dataset = dataset.repeat(-1) # Repeat the dataset this time
     dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
     return dataset
@@ -223,7 +219,7 @@ if __name__ == '__main__':
     dataset = parse_tfrecords(
         filenames=os.path.join(os.getcwd(),'DATA','train*.tfrecord'), 
         batch_size=2,
-        num_classes=4)
+        num_classes=5)
 
     for data, annotation in dataset.take(10):
         image_batch = data.numpy()
