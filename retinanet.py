@@ -336,6 +336,22 @@ def retinanet(
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 
 
+def get_retinanet_r50(num_classes):
+    inputs = keras.layers.Input(shape=(None, None, 3))
+
+    resnet = keras.applications.resnet.ResNet50(include_top=False, weights='imagenet', input_tensor=inputs, pooling=None)
+
+    C2 = resnet.get_layer('conv2_block3_out').output
+    C3 = resnet.get_layer('conv3_block4_out').output
+    C4 = resnet.get_layer('conv4_block6_out').output
+    C5 = resnet.get_layer('conv5_block3_out').output
+
+    #print(C3, C4, C5)
+
+    return retinanet(inputs=inputs, backbone_layers=(C3,C4,C5), num_classes=num_classes)
+    
+
+
 def main():
 
     inputs = keras.layers.Input(shape=(None, None, 3))
