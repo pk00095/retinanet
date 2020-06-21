@@ -10,7 +10,21 @@ try:
 except:
   from preprocessing import anchor_targets_bbox, anchors_for_shape
 
-def parse_tfrecords(filenames, batch_size, sizes, ratios, scales, strides, min_side=800, max_side=1333):
+import preprocessing
+
+AnchorParameters_default = preprocessing.AnchorParameters.default
+
+
+def parse_tfrecords(
+  filenames, 
+  batch_size, 
+  num_classes,
+  sizes=AnchorParameters_default.sizes, 
+  ratios=AnchorParameters_default.ratios, 
+  scales=AnchorParameters_default.scales, 
+  strides=AnchorParameters_default.strides, 
+  min_side=800, 
+  max_side=1333):
     """Summary
     
     Args:
@@ -58,13 +72,13 @@ def parse_tfrecords(filenames, batch_size, sizes, ratios, scales, strides, min_s
       return image
 
     def process_bboxes(image_array, bboxes, labels):
-        # tf.print(bboxes.shape, labels.shape)
+
         # delete bboxes containing [-1,-1,-1,-1]
         bboxes = bboxes[~np.all(bboxes==-1, axis=1)]
         # delete labels containing[-1]
         labels = labels[labels>-1]#[0]
-        print(bboxes.shape, labels.shape)
 
+        # generate raw anchors
         raw_anchors = anchors_for_shape(
             image_shape=image_array.shape,
             sizes=sizes,
@@ -75,20 +89,36 @@ def parse_tfrecords(filenames, batch_size, sizes, ratios, scales, strides, min_s
             shapes_callback=None,
         )
 
-        # generate anchorboxes and class labels
+        # generate anchorboxes and class labels      
+        gt_regression, gt_classification = anchor_targets_bbox(
+              anchors=raw_anchors,
+              image=image_array,
+              bboxes=bboxes,
+              gt_labels=labels,
+              num_classes=num_classes,
+              negative_overlap=0.4,
+              positive_overlap=0.5
+          )
 
-        
-        return bboxes
+        return gt_regression, gt_classification
 
     @tf.function
     def tf_process_bboxes(xmin_batch, ymin_batch, xmax_batch, ymax_batch, label_batch, image_batch):
+
+        regression_batch = list()
+        classification_batch = list()
 
         for index in range(batch_size):
             xmins, ymins, xmaxs, ymaxs, labels = xmin_batch[index], ymin_batch[index], xmax_batch[index], ymax_batch[index], label_batch[index]
             image_array = image_batch[index]
             bboxes = tf.convert_to_tensor([xmins,ymins,xmaxs,ymaxs], dtype=tf.keras.backend.floatx())
             bboxes = tf.transpose(bboxes)
-            bboxes = tf.numpy_function(process_bboxes, [image_array, bboxes, labels], Tout=tf.keras.backend.floatx())
+            gt_regression, gt_classification = tf.numpy_function(process_bboxes, [image_array, bboxes, labels], Tout=[tf.keras.backend.floatx(), tf.keras.backend.floatx()])
+
+            regression_batch.append(gt_regression)
+            classification_batch.append(gt_classification)
+
+        return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(classification_batch)
 
         #return bboxes
         
@@ -150,14 +180,14 @@ def parse_tfrecords(filenames, batch_size, sizes, ratios, scales, strides, min_s
         # tf.print(ymax_batch.shape)
         # tf.print(label_batch.shape)
 
-        tf_process_bboxes(xmin_batch,ymin_batch,xmax_batch,ymax_batch, label_batch)
+        regression_batch, classification_batch = tf_process_bboxes(xmin_batch, ymin_batch, xmax_batch, ymax_batch, label_batch, image_batch)
 
         # create GT from annotations
         # augment image_batch
         # normalize image through preprocessing
 
 
-        return image_batch #, {'regression':abxs, 'classification':lbls}
+        return image_batch , {'regression':regression_batch, 'classification':classification_batch}
 
 
     # dataset = tf.data.Dataset.from_tensor_slices(filenames).repeat(-1)
@@ -190,14 +220,16 @@ def parse_tfrecords(filenames, batch_size, sizes, ratios, scales, strides, min_s
 if __name__ == '__main__':
     # filepath = os.path.join(os.getcwd(),'DATA','train*.tfrecord')
 
-    # tfrecords = list(glob.glob(filepath))
-    # print(tfrecords)
-
-
     dataset = parse_tfrecords(
         filenames=os.path.join(os.getcwd(),'DATA','train*.tfrecord'), 
-        batch_size=2)
+        batch_size=2,
+        num_classes=4)
 
-    for data in dataset.take(5):
-        data_decoded = data.numpy()
-        #print(data_decoded.shape, data_decoded.dtype)
+    for data, annotation in dataset.take(10):
+        image_batch = data.numpy()
+
+        abxs_batch = annotation['regression'].numpy()
+        labels_batch = annotation['classification'].numpy()
+
+        print(image_batch.shape, abxs_batch.shape, labels_batch.shape)
+        print(image_batch.dtype, abxs_batch.dtype, labels_batch.dtype)
