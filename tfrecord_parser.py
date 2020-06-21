@@ -5,7 +5,12 @@ import cv2, os, glob
 import numpy as np
 import pdb
 
-def parse_tfrecords(filenames, batch_size, min_side=800, max_side=1333):
+try:
+  from .preprocessing import anchor_targets_bbox, anchors_for_shape
+except:
+  from preprocessing import anchor_targets_bbox, anchors_for_shape
+
+def parse_tfrecords(filenames, batch_size, sizes, ratios, scales, strides, min_side=800, max_side=1333):
     """Summary
     
     Args:
@@ -52,7 +57,7 @@ def parse_tfrecords(filenames, batch_size, min_side=800, max_side=1333):
       #image.set_shape([None, None, 3])
       return image
 
-    def process_bboxes(bboxes, labels):
+    def process_bboxes(image_array, bboxes, labels):
         # tf.print(bboxes.shape, labels.shape)
         # delete bboxes containing [-1,-1,-1,-1]
         bboxes = bboxes[~np.all(bboxes==-1, axis=1)]
@@ -60,19 +65,30 @@ def parse_tfrecords(filenames, batch_size, min_side=800, max_side=1333):
         labels = labels[labels>-1]#[0]
         print(bboxes.shape, labels.shape)
 
+        raw_anchors = anchors_for_shape(
+            image_shape=image_array.shape,
+            sizes=sizes,
+            ratios=ratios,
+            scales=scales,
+            strides=strides,
+            pyramid_levels=[3, 4, 5, 6, 7],
+            shapes_callback=None,
+        )
+
         # generate anchorboxes and class labels
 
         
         return bboxes
 
     @tf.function
-    def tf_process_bboxes(xmin_batch, ymin_batch, xmax_batch, ymax_batch, label_batch):
+    def tf_process_bboxes(xmin_batch, ymin_batch, xmax_batch, ymax_batch, label_batch, image_batch):
 
         for index in range(batch_size):
             xmins, ymins, xmaxs, ymaxs, labels = xmin_batch[index], ymin_batch[index], xmax_batch[index], ymax_batch[index], label_batch[index]
+            image_array = image_batch[index]
             bboxes = tf.convert_to_tensor([xmins,ymins,xmaxs,ymaxs], dtype=tf.keras.backend.floatx())
             bboxes = tf.transpose(bboxes)
-            bboxes = tf.numpy_function(process_bboxes, [bboxes, labels], Tout=tf.keras.backend.floatx())
+            bboxes = tf.numpy_function(process_bboxes, [image_array, bboxes, labels], Tout=tf.keras.backend.floatx())
 
         #return bboxes
         
