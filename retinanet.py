@@ -479,7 +479,6 @@ def retinanet_bbox(
     nms                   = True,
     class_specific_filter = True,
     name                  = 'retinanet-bbox',
-    anchor_params         = None,
     nms_threshold         = 0.5,
     score_threshold       = 0.05,
     max_detections        = 300,

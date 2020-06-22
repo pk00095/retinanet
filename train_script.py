@@ -79,29 +79,64 @@ def main():
             'classification': focal()},
         optimizer=keras.optimizers.Adam(lr=learning_rate, clipnorm=0.001))
 
-    print(model.summary())
-    # exit()
+    # print(model.summary())
 
-    model.fit(
-        train_dataset_function, 
-        epochs=5, 
-        steps_per_epoch=154,
-        callbacks=[reduce_lr_callback, model_checkpoint_callback])
+    # model.fit(
+    #     train_dataset_function, 
+    #     epochs=5, 
+    #     steps_per_epoch=154,
+    #     callbacks=[reduce_lr_callback, model_checkpoint_callback])
+
+    print('saving model')
+    model.save('./checkpoints/model')
+
+def freeze(
+    checkpoint_path,
+    model_savepath,
+    sizes = AnchorParameters_default.sizes,
+    ratios = AnchorParameters_default.ratios,
+    scales = AnchorParameters_default.scales,
+    strides = AnchorParameters_default.strides,
+    allow_class_overlap = False,
+    apply_nms= True,
+    nms_threshold = 0.5,
+    score_threshold = 0.05,
+    max_bboxes = 300
+    ):
+
+    # feature_extractor = get_retinanet_r50(
+    #     num_classes,
+    #     num_anchors_per_location=len(scales)*len(ratios),
+    #     weights=None)
+
+    # feature_extractor.load_weights(
+    #     filepath=checkpoint_path,
+    #     by_name=True)
+
+    print('Loading weights from trained file ..')
+    # compile==False to avoid ValueError: Unknown loss function:_smooth_l1
+    feature_extractor = keras.models.load_model(filepath=checkpoint_path, compile=False) 
 
     #convert training_model to prediction model
+    print('converting training model to prediction model ...')
 
-    # pred_model = retinanet_bbox(
-    #     model=model,
-    #     sizes=sizes,
-    #     strides=strides,
-    #     ratios=ratios,
-    #     scales=scales)
+    pred_model = retinanet_bbox(
+        model=feature_extractor,
+        sizes=sizes,
+        strides=strides,
+        ratios=ratios,
+        scales=scales,
+        nms                   = apply_nms,
+        class_specific_filter = not allow_class_overlap,
+        nms_threshold         = nms_threshold,
+        score_threshold       = score_threshold,
+        max_detections        = max_bboxes)
 
-    # pred_model.save(
-    #     filepath=os.path.join(checkpoint_path, 'retinanet__pred.h5'), 
-    #     overwrite=True, 
-    #     include_optimizer=False)
+    pred_model.save(filepath=model_savepath)
+
+    print('Done saving ...')
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    freeze('./checkpoints/model', './checkpoints/prediction')
