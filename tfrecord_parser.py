@@ -207,7 +207,7 @@ def parse_tfrecords(
       _parse_function, 
       num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
-    dataset = dataset.cache()
+    # dataset = dataset.cache()
     dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
     return dataset
