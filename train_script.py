@@ -9,7 +9,7 @@ import preprocessing
 
 AnchorParameters_default = preprocessing.AnchorParameters.default
 
-def main():
+def trainer():
     num_classes = 4
     learning_rate = 1e-4
     batch_size = 2
@@ -79,13 +79,13 @@ def main():
             'classification': focal()},
         optimizer=keras.optimizers.Adam(lr=learning_rate, clipnorm=0.001))
 
-    # print(model.summary())
+    print(model.summary())
 
-    # model.fit(
-    #     train_dataset_function, 
-    #     epochs=5, 
-    #     steps_per_epoch=154,
-    #     callbacks=[reduce_lr_callback, model_checkpoint_callback])
+    model.fit(
+        train_dataset_function, 
+        epochs=5, 
+        steps_per_epoch=154,
+        callbacks=[reduce_lr_callback, model_checkpoint_callback])
 
     print('saving model')
     model.save('./checkpoints/model')
@@ -138,5 +138,5 @@ def freeze(
 
 
 if __name__ == '__main__':
-    # main()
+    trainer()
     freeze('./checkpoints/model', './checkpoints/prediction')
