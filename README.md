@@ -8,9 +8,14 @@ create retinanet from tf.keras.applications, which is compatible with tensorflow
 currently only pascal-voc xml format is supported
 
 ## Training on custom data
+
 ### create tfrecords from pascal-voc format
 Edit [tfrecord_creator.py](https://github.com/pk00095/retinanet/blob/master/tfrecord_creator.py)
+
 ### train
-Edit [train_script.py](https://github.com/pk00095/retinanet/blob/master/train_script.py)
+- Use `trainer` function to train on your data [train_script.py](https://github.com/pk00095/retinanet/blob/master/train_script.py)
+- Use `freeze` function to freeze a trained model from [train_script.py](https://github.com/pk00095/retinanet/blob/master/train_script.py)
+
 ### predict
-Edit [predict_script.py](https://github.com/pk00095/retinanet/blob/master/predict_script.py
+- Load model using `load_model` function from [predict_script.py](https://github.com/pk00095/retinanet/blob/master/predict_script.py)
+- Predict on a list of images using `predict` function from [predict_script.py](https://github.com/pk00095/retinanet/blob/master/predict_script.py)
