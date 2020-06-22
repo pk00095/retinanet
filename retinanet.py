@@ -441,7 +441,7 @@ def retinanet(
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 
 
-def get_retinanet_r50(num_classes, num_anchors_per_location):
+def get_retinanet_r50(num_classes, num_anchors_per_location, weights='imagenet'):
     """Summary
     
     Args:
@@ -453,7 +453,7 @@ def get_retinanet_r50(num_classes, num_anchors_per_location):
     """
     inputs = keras.layers.Input(shape=(None, None, 3))
 
-    resnet = keras.applications.resnet.ResNet50(include_top=False, weights='imagenet', input_tensor=inputs, pooling=None)
+    resnet = keras.applications.resnet.ResNet50(include_top=False, weights=weights, input_tensor=inputs, pooling=None)
 
     C2 = resnet.get_layer('conv2_block3_out').output
     C3 = resnet.get_layer('conv3_block4_out').output

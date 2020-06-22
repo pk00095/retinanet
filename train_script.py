@@ -82,23 +82,25 @@ def main():
     print(model.summary())
     # exit()
 
-    # model.fit(
-    #     train_dataset_function, 
-    #     epochs=5, 
-    #     steps_per_epoch=154,
-    #     callbacks=[reduce_lr_callback, model_checkpoint_callback])
+    model.fit(
+        train_dataset_function, 
+        epochs=5, 
+        steps_per_epoch=154,
+        callbacks=[reduce_lr_callback, model_checkpoint_callback])
 
-    pred_model = retinanet_bbox(
-        model=model,
-        sizes=sizes,
-        strides=strides,
-        ratios=ratios,
-        scales=scales)
+    #convert training_model to prediction model
 
-    pred_model.save(
-        filepath=os.path.join(checkpoint_path, 'retinanet__pred.h5'), 
-        overwrite=True, 
-        include_optimizer=False)
+    # pred_model = retinanet_bbox(
+    #     model=model,
+    #     sizes=sizes,
+    #     strides=strides,
+    #     ratios=ratios,
+    #     scales=scales)
+
+    # pred_model.save(
+    #     filepath=os.path.join(checkpoint_path, 'retinanet__pred.h5'), 
+    #     overwrite=True, 
+    #     include_optimizer=False)
 
 
 if __name__ == '__main__':
