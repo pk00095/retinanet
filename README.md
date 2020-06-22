@@ -1,7 +1,7 @@
 # retinanet
 
 ## Introduction
-create retinanet from tf.keras.applications, which is compatible with tensorflow 2.2.0 and newer versions and use tf.data api to feed data to algorithm.
+create retinanet from tf.keras.applications, which is compatible with tensorflow 2.2.0 and newer versions and use tf.data api to feed data to algorithm. The implementation is heavily inspired by [fizyr](https://github.com/fizyr/keras-retinanet)
 
 
 ## Data Format
