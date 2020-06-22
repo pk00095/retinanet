@@ -1,4 +1,5 @@
 from tensorflow import keras
+from tensorflow.keras.applications.resnet import preprocess_input as resnet_preprocess_input
 from retinanet import get_retinanet_r50
 from losses import focal, smooth_l1
 from tfrecord_parser import parse_tfrecords
@@ -25,8 +26,8 @@ def main():
     train_dataset_function = parse_tfrecords(
           filenames=os.path.join(os.getcwd(),'DATA','train*.tfrecord'), 
           batch_size=2, 
-          num_classes=num_classes,)
-          # preprocess_fn=lambda x:x,
+          num_classes=num_classes,
+          preprocess_fn=resnet_preprocess_input)
           # sizes=AnchorParameters_default.sizes, 
           # ratios=AnchorParameters_default.ratios, 
           # scales=AnchorParameters_default.scales, 
@@ -42,9 +43,8 @@ def main():
         },
         optimizer=keras.optimizers.Adam(lr=learning_rate, clipnorm=0.001))
 
-    print(model.summary())
-
-    exit()
+    # print(model.summary())
+    # exit()
 
     model.fit(
         train_dataset_function, 
