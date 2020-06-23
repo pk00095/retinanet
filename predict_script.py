@@ -4,6 +4,45 @@ from retinanet import get_retinanet_r50, retinanet_bbox
 import numpy as np
 import cv2
 
+from PIL import Image, ImageDraw, ImageFont
+
+font = ImageFont.load_default()
+
+interpolation_options = {
+    'nearest':cv2.INTER_NEAREST,
+    'linear':cv2.INTER_LINEAR,
+    'cubic':cv2.INTER_CUBIC,
+    'area':cv2.INTER_AREA,
+    'lanczos4':cv2.INTER_LANCZOS4
+}
+
+
+STANDARD_COLORS = [
+    'AliceBlue', 'Chartreuse', 'Aqua', 'Aquamarine', 'Azure', 'Beige', 'Bisque',
+    'BlanchedAlmond', 'BlueViolet', 'BurlyWood', 'CadetBlue', 'AntiqueWhite',
+    'Chocolate', 'Coral', 'CornflowerBlue', 'Cornsilk', 'Crimson', 'Cyan',
+    'DarkCyan', 'DarkGoldenRod', 'DarkGrey', 'DarkKhaki', 'DarkOrange',
+    'DarkOrchid', 'DarkSalmon', 'DarkSeaGreen', 'DarkTurquoise', 'DarkViolet',
+    'DeepPink', 'DeepSkyBlue', 'DodgerBlue', 'FireBrick', 'FloralWhite',
+    'ForestGreen', 'Fuchsia', 'Gainsboro', 'GhostWhite', 'Gold', 'GoldenRod',
+    'Salmon', 'Tan', 'HoneyDew', 'HotPink', 'IndianRed', 'Ivory', 'Khaki',
+    'Lavender', 'LavenderBlush', 'LawnGreen', 'LemonChiffon', 'LightBlue',
+    'LightCoral', 'LightCyan', 'LightGoldenRodYellow', 'LightGray', 'LightGrey',
+    'LightGreen', 'LightPink', 'LightSalmon', 'LightSeaGreen', 'LightSkyBlue',
+    'LightSlateGray', 'LightSlateGrey', 'LightSteelBlue', 'LightYellow', 'Lime',
+    'LimeGreen', 'Linen', 'Magenta', 'MediumAquaMarine', 'MediumOrchid',
+    'MediumPurple', 'MediumSeaGreen', 'MediumSlateBlue', 'MediumSpringGreen',
+    'MediumTurquoise', 'MediumVioletRed', 'MintCream', 'MistyRose', 'Moccasin',
+    'NavajoWhite', 'OldLace', 'Olive', 'OliveDrab', 'Orange', 'OrangeRed',
+    'Orchid', 'PaleGoldenRod', 'PaleGreen', 'PaleTurquoise', 'PaleVioletRed',
+    'PapayaWhip', 'PeachPuff', 'Peru', 'Pink', 'Plum', 'PowderBlue', 'Purple',
+    'Red', 'RosyBrown', 'RoyalBlue', 'SaddleBrown', 'Green', 'SandyBrown',
+    'SeaGreen', 'SeaShell', 'Sienna', 'Silver', 'SkyBlue', 'SlateBlue',
+    'SlateGray', 'SlateGrey', 'Snow', 'SpringGreen', 'SteelBlue', 'GreenYellow',
+    'Teal', 'Thistle', 'Tomato', 'Turquoise', 'Violet', 'Wheat', 'White',
+    'WhiteSmoke', 'Yellow', 'YellowGreen'
+]
+
 
 def load_model(checkpoint_path):
 
@@ -37,11 +76,13 @@ def pad_resize(image, height, width, scale):
     return resized_image
 
 
-def predict(model, image_list):
-    assert isinstance(image_list, list), 'expected a list of images'
+def predict(model, image_path):
+    # assert isinstance(image_list, list), 'expected a list of images'
     
     images = list()
     h_max, w_max = 0,0
+
+    image_list = [image_path]
 
     for img_path in image_list:
         im = np.array(keras.preprocessing.image.load_img(path=img_path))
@@ -59,15 +100,63 @@ def predict(model, image_list):
 
     images_batch =  list(map(lambda x:pad_resize(x, h_max, w_max, scale), images))
 
-
     images_batch = resnet_preprocess_input(np.array(images_batch))
 
-    return model.predict(images_batch)
+    bbox, confidence, label = model.predict(images_batch)
 
+    return bbox[0].astype(int)/scale, confidence[0], label[0], im
+
+def annotate_image(image_array, bboxes, scores, labels, threshold=0.5, label_dict=None):
+  image = Image.fromarray(image_array)
+  Imagedraw = ImageDraw.Draw(image)
+
+  for box, label, score in zip(bboxes, labels, scores):
+    if score < threshold:
+      continue
+
+    (left,top,right,bottom) = box
+
+    label_to_display = label
+    if isinstance(label_dict, dict):
+      label_to_display = label_dict[label]
+
+    caption = "{}|{:.3f}".format(label_to_display, score)
+    #draw_caption(draw, b, caption)
+
+    colortofill = STANDARD_COLORS[label]
+    Imagedraw.rectangle([left,top,right,bottom], fill=None, outline=colortofill)
+
+    display_str_heights = font.getsize(caption)[1]
+    # Each display_str has a top and bottom margin of 0.05x.
+    total_display_str_height = (1 + 2 * 0.05) * display_str_heights
+
+    if top > total_display_str_height:
+        text_bottom = top
+    else:
+        text_bottom = bottom + total_display_str_height
+
+    text_width, text_height = font.getsize(caption)
+    margin = np.ceil(0.05 * text_height)
+    Imagedraw.rectangle([(left, text_bottom-text_height-2*margin), (left+text_width,text_bottom)], fill=colortofill)
+
+    Imagedraw.text((left+margin, text_bottom-text_height-margin),caption,fill='black',font=font)
+
+  return image
 
 
 
 if __name__ == '__main__':
     pred_model = load_model('./checkpoints/prediction')
-    results = predict(pred_model, ['./aerial-vehicles-dataset/images/DJI_0005-0041.jpg'])
-    print(results)
+    bbox, confidence, label, im = predict(pred_model, './aerial-vehicles-dataset/images/DJI_0005-0041.jpg')
+    # import pdb; pdb.set_trace()
+    # print(bbox.shape, bbox.shape, confidence.shape, label.shape, im.shape)
+
+    annotated_image = annotate_image(
+        image_array=im, 
+        bboxes=bbox, 
+        scores=confidence, 
+        labels=label, 
+        threshold=0.5, 
+        label_dict=None)
+
+    annotated_image.save('annotated.jpg')
