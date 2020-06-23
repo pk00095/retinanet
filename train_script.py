@@ -50,11 +50,11 @@ def trainer():
     model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
         os.path.join(checkpoint_path, prefix), 
         monitor='val_loss', 
-        verbose=0, 
-        save_best_only=True,
+        verbose=1, 
+        #save_best_only=True,
         save_weights_only=False, 
         mode='auto', 
-        save_freq=2)
+        save_freq=154*5)
 
 
     train_dataset_function = parse_tfrecords(
@@ -83,7 +83,7 @@ def trainer():
 
     model.fit(
         train_dataset_function, 
-        epochs=5, 
+        epochs=15, 
         steps_per_epoch=154,
         callbacks=[reduce_lr_callback, model_checkpoint_callback])
 

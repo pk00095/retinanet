@@ -28,7 +28,7 @@ def pad_resize(image, height, width, scale):
         numpy nd.array: Description
     """
     # pad image
-    padded_image = np.zeros(shape=(height.astype(int), width.astype(int),3), dtype=image.dtype)
+    padded_image = np.zeros(shape=(height, width,3), dtype=image.dtype)
     h,w,_ =  image.shape
     padded_image[:h,:w,:] = image
 
@@ -51,11 +51,11 @@ def predict(model, image_list):
         images.append(im)
 
     smallest_side = min(h_max, w_max)
-    scale = min_side / smallest_side
+    scale = 800 / smallest_side
     largest_side = max(h_max, w_max)
-    # scale = tf.cond(largest_side * tf.cast(scale, tf.int32) > max_side, lambda: max_side / largest_side, , lambda: scale)
-    if largest_side * scale > max_side:
-        scale = max_side / largest_side
+    # scale = tf.cond(largest_side * tf.cast(scale, tf.int32) > 1333, lambda: 1333 / largest_side, , lambda: scale)
+    if largest_side * scale > 1333:
+        scale = 1333 / largest_side
 
     images_batch =  list(map(lambda x:pad_resize(x, h_max, w_max, scale), images))
 
@@ -68,4 +68,6 @@ def predict(model, image_list):
 
 
 if __name__ == '__main__':
-    load_model('./checkpoints/prediction')
+    pred_model = load_model('./checkpoints/prediction')
+    results = predict(pred_model, ['./aerial-vehicles-dataset/images/DJI_0005-0041.jpg'])
+    print(results)
