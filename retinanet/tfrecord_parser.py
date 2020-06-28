@@ -3,29 +3,19 @@
 import tensorflow as tf
 import cv2, os, glob
 import numpy as np
-import pdb
-
-try:
-  from .preprocessing import anchor_targets_bbox, anchors_for_shape
-except:
-  from preprocessing import anchor_targets_bbox, anchors_for_shape
-
-import preprocessing
-
-AnchorParameters_default = preprocessing.AnchorParameters.default
-
+from .preprocessing import anchor_targets_bbox, anchors_for_shape
 
 def parse_tfrecords(
   filenames, 
   batch_size, 
   num_classes,
-  preprocess_fn=lambda x:x,
-  sizes=AnchorParameters_default.sizes, 
-  ratios=AnchorParameters_default.ratios, 
-  scales=AnchorParameters_default.scales, 
-  strides=AnchorParameters_default.strides, 
+  sizes, 
+  ratios, 
+  scales, 
+  strides, 
   min_side=800, 
-  max_side=1333):
+  max_side=1333,
+  preprocess_fn=lambda x:x):
     """Summary
     
     Args:

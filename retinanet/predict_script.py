@@ -1,9 +1,7 @@
 from tensorflow import keras
-from tensorflow.keras.applications.resnet import preprocess_input as resnet_preprocess_input
-from retinanet import get_retinanet_r50, retinanet_bbox
+from tensorflow.keras.applications.resnet import preprocess_input as resnet_normalize_image
 import numpy as np
 import cv2
-
 
 def load_model(checkpoint_path):
 
@@ -37,7 +35,7 @@ def pad_resize(image, height, width, scale):
     return resized_image
 
 
-def predict(model, image_list):
+def predict(model, image_list, min_side=800, max_side=1333):
     assert isinstance(image_list, list), 'expected a list of images'
     
     images = list()
@@ -53,14 +51,12 @@ def predict(model, image_list):
     smallest_side = min(h_max, w_max)
     scale = min_side / smallest_side
     largest_side = max(h_max, w_max)
-    # scale = tf.cond(largest_side * tf.cast(scale, tf.int32) > max_side, lambda: max_side / largest_side, , lambda: scale)
+
     if largest_side * scale > max_side:
         scale = max_side / largest_side
 
     images_batch =  list(map(lambda x:pad_resize(x, h_max, w_max, scale), images))
-
-
-    images_batch = resnet_preprocess_input(np.array(images_batch))
+    images_batch = resnet_normalize_image(np.array(images_batch))
 
     return model.predict(images_batch)
 

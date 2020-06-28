@@ -1,5 +1,4 @@
 import tensorflow as tf
-#from object_detection.utils import dataset_util
 from PIL import Image
 import json, os, glob, random, io, tqdm
 import math, sys
@@ -212,14 +211,12 @@ def files_to_retain(files, xml_dir):
 
 _NUM_SHARDS = 4
 
-def main(image_dir, xml_dir, outname='train.tfrecord'):
+def create_tfrecords(image_dir, xml_dir, outpath=os.path.join(os.getcwd(),'DATA'), outname='train.tfrecord'):
 
   if not outname.endswith('.tfrecord'):
     raise ValueError("outname should endwith '.tfrecord', got name %s "%(outname))
 
   image_names = files_to_retain(glob.glob(os.path.join(image_dir,'*.jpg')),xml_dir)
-
-  outpath = os.path.join(os.getcwd(),'DATA')
 
   os.makedirs(outpath, exist_ok=True)
 

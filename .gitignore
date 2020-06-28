@@ -1,5 +1,9 @@
 *.pyc
+*.so
 __pycache__/*
 /DATA/*
 /aerial-vehicles-dataset/*
 /checkpoints/*
+/build/*
+/dist/*
+/retinanet.egg-info/*

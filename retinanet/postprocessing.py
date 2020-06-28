@@ -3,10 +3,7 @@ import tensorflow as tf
 from tensorflow import keras
 import numpy as np
 
-try:
-    from .preprocessing import generate_anchors
-except:
-    from preprocessing import generate_anchors
+from .preprocessing import generate_anchors
 
 
 def filter_detections(

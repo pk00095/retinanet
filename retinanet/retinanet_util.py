@@ -2,10 +2,7 @@ import tensorflow as tf
 from tensorflow import keras
 import numpy as np
 
-import preprocessing
-from postprocessing import RegressBoxes, ClipBoxes, FilterDetections, Anchors
-
-# AnchorParameters_default = preprocessing.AnchorParameters.default
+from .postprocessing import RegressBoxes, ClipBoxes, FilterDetections, Anchors
 
 
 class PriorProbability(keras.initializers.Initializer):
@@ -455,7 +452,7 @@ def get_retinanet_r50(num_classes, num_anchors_per_location, weights='imagenet')
 
     resnet = keras.applications.resnet.ResNet50(include_top=False, weights=weights, input_tensor=inputs, pooling=None)
 
-    C2 = resnet.get_layer('conv2_block3_out').output
+    # C2 = resnet.get_layer('conv2_block3_out').output
     C3 = resnet.get_layer('conv3_block4_out').output
     C4 = resnet.get_layer('conv4_block6_out').output
     C5 = resnet.get_layer('conv5_block3_out').output
@@ -467,7 +464,61 @@ def get_retinanet_r50(num_classes, num_anchors_per_location, weights='imagenet')
         backbone_layers=(C3,C4,C5), 
         num_classes=num_classes,
         num_anchors=num_anchors_per_location)
+
+
+def get_retinanet_r101(num_classes, num_anchors_per_location, weights='imagenet'):
+    """Summary
     
+    Args:
+        num_classes (TYPE): Description
+        num_anchors_per_location (TYPE, optional): Description
+    
+    Returns:
+        TYPE: Description
+    """
+    inputs = keras.layers.Input(shape=(None, None, 3))
+
+    resnet = keras.applications.resnet.ResNet101(include_top=False, weights=weights, input_tensor=inputs, pooling=None)
+
+    # C2 = resnet.get_layer('conv2_block3_out').output
+    C3 = resnet.get_layer('conv3_block4_out').output
+    C4 = resnet.get_layer('conv4_block23_out').output
+    C5 = resnet.get_layer('conv5_block3_out').output
+
+    #print(C3, C4, C5)
+
+    return retinanet(
+        inputs=inputs, 
+        backbone_layers=(C3,C4,C5), 
+        num_classes=num_classes,
+        num_anchors=num_anchors_per_location)
+    
+def get_retinanet_r152(num_classes, num_anchors_per_location, weights='imagenet'):
+    """Summary
+    
+    Args:
+        num_classes (TYPE): Description
+        num_anchors_per_location (TYPE, optional): Description
+    
+    Returns:
+        TYPE: Description
+    """
+    inputs = keras.layers.Input(shape=(None, None, 3))
+
+    resnet = keras.applications.resnet.ResNet152(include_top=False, weights=weights, input_tensor=inputs, pooling=None)
+
+    # C2 = resnet.get_layer('conv2_block3_out').output
+    C3 = resnet.get_layer('conv3_block8_out').output
+    C4 = resnet.get_layer('conv4_block36_out').output
+    C5 = resnet.get_layer('conv5_block3_out').output
+
+    #print(C3, C4, C5)
+
+    return retinanet(
+        inputs=inputs, 
+        backbone_layers=(C3,C4,C5), 
+        num_classes=num_classes,
+        num_anchors=num_anchors_per_location)
 
 
 def retinanet_bbox(
@@ -550,24 +601,7 @@ def retinanet_bbox(
     # construct the model
     return keras.models.Model(inputs=model.inputs, outputs=detections, name=name)
 
-def main():
-    """Summary
-    """
-    inputs = keras.layers.Input(shape=(None, None, 3))
-
-    resnet = keras.applications.resnet.ResNet50(include_top=False, weights='imagenet', input_tensor=inputs, pooling=None)
-
-    C2 = resnet.get_layer('conv2_block3_out').output
-    C3 = resnet.get_layer('conv3_block4_out').output
-    C4 = resnet.get_layer('conv4_block6_out').output
-    C5 = resnet.get_layer('conv5_block3_out').output
-
-    #print(C3, C4, C5)
-
-    retinanet_model = retinanet(inputs=inputs, backbone_layers=(C3,C4,C5), num_classes=4)
-
-    print(retinanet_model.summary())
-    #print(retinanet_model.outputs)
-
-if __name__ == '__main__':
-    main()
+_BACKBONES = dict(
+    resnet50=get_retinanet_r50,
+    resnet101=get_retinanet_r101,
+    resnet152=get_retinanet_r152)
