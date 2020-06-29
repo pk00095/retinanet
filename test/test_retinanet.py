@@ -1,4 +1,4 @@
-import unittest, zipfile, tempfile, os
+import unittest, zipfile, tempfile, os, cv2
 import tensorflow as tf
 import numpy as np
 
@@ -34,7 +34,9 @@ class Test_RetinaNet(unittest.TestCase):
 
     def test_data_augmentation(self):
         from retinanet.tfrecord_parser import parse_tfrecords
-        from retinanet.preprocessing import AnchorParameters
+        from retinanet.preprocessing import AnchorParameters, anchors_for_shape
+        from retinanet.postprocessing import bbox_transform_inv
+        from retinanet.predict_script import annotate_image
 
         from albumentations import (
             RandomContrast, RandomCrop, Rotate, RandomGamma, Flip, OneOf, MotionBlur, MedianBlur, Blur, 
@@ -63,15 +65,50 @@ class Test_RetinaNet(unittest.TestCase):
             strides=anchor_params.strides,
             aug=aug)
 
+        index = 0
+
+        os.makedirs(os.path.join(tempfile.gettempdir(),'ANNOTATIONS'), exist_ok=True)
+
         for data, annotation in dataset.take(10):
             image_batch = data.numpy()
 
-            abxs_batch = annotation['regression'].numpy()
+            num_batches = image_batch.shape[0]
+
+            boxes = anchors_for_shape(
+                        image_shape=image_batch[0].shape,
+                        sizes=anchor_params.sizes, 
+                        ratios=anchor_params.ratios, 
+                        scales=anchor_params.scales, 
+                        strides=anchor_params.strides)
+
+            boxes = np.broadcast_to(boxes, (num_batches,)+boxes.shape)
+
+            abx_deltas_batch = annotation['regression'].numpy()
             labels_batch = annotation['classification'].numpy()
 
-            # print(image_batch.shape, abxs_batch.shape, labels_batch.shape)
-            # print(image_batch.dtype, abxs_batch.dtype, labels_batch.dtype)
-            print((image_batch).max(), image_batch.min())
+            deltas_batch = abx_deltas_batch[:,:,:-1]
+
+            abxs_batch = bbox_transform_inv(boxes=boxes, deltas=deltas_batch)
+            abx_deltas_batch[:,:,:-1] = abxs_batch.numpy() #.astype(int)
+
+
+            for ind, image in enumerate(image_batch):
+
+                bboxes = abx_deltas_batch[ind]
+                labels = labels_batch[ind]
+                # print(bboxes)
+
+                positive_box_indices = np.where(bboxes[:,-1]==1)
+                positive_boxes = bboxes[positive_box_indices][:,:-1].astype(int)
+                labels = np.argmax(labels[positive_box_indices][:,:-1], axis=-1)
+                # print(positive_boxes)
+                # print(labels)
+
+                pil_image = annotate_image(image_array=image.astype(np.uint8), bboxes=positive_boxes, scores=[1]*positive_boxes.shape[0], labels=labels)
+                pil_image.save(os.path.join(tempfile.gettempdir(),'ANNOTATIONS','{}.jpg'.format(index)))
+                # pil_image.save('{}.jpg'.format(index))
+                index += 1
+
 
     def test_trainloop(self):
         from retinanet.train_script import trainer
