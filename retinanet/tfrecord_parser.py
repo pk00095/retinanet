@@ -3,6 +3,7 @@
 import tensorflow as tf
 import cv2, os, glob
 import numpy as np
+from albumentations import Compose, BboxParams
 from .preprocessing import anchor_targets_bbox, anchors_for_shape
 
 def parse_tfrecords(
@@ -15,7 +16,8 @@ def parse_tfrecords(
   strides, 
   min_side=800, 
   max_side=1333,
-  preprocess_fn=lambda x:x):
+  preprocess_fn=lambda x:x.astype(tf.keras.backend.floatx()),
+  aug=None):
     """Summary
     
     Args:
@@ -27,6 +29,23 @@ def parse_tfrecords(
     Returns:
         tf.data.Dataset: Description
     """
+    if aug != None:
+        augmentation = Compose(
+          aug, 
+          bbox_params=BboxParams(
+            format='pascal_voc', 
+            min_area=0.0,
+            min_visibility=0.0, 
+            label_fields=['category_id'])
+          )
+    else:
+      augmentation = None
+
+    # @tf.function
+    # def normalize_batch(image_batch):
+    #   return tf.numpy_function(preprocess_fn, [image_batch], Tout=tf.keras.backend.floatx())
+
+
     def pad_resize(image, height, width, scale):
         """Summary
         
@@ -42,8 +61,21 @@ def parse_tfrecords(
         padded_image = np.zeros(shape=(height.astype(int), width.astype(int),3), dtype=image.dtype)
         h,w,_ =  image.shape
         padded_image[:h,:w,:] = image
-        resized_image = cv2.resize(padded_image, None, fx=scale, fy=scale).astype(tf.keras.backend.floatx())
-        return preprocess_fn(resized_image)
+        resized_image = cv2.resize(padded_image, None, fx=scale, fy=scale).astype(np.uint8)
+        return resized_image
+
+    def augment(image, bboxes, labels):
+      annotations = {'image': image, 'bboxes': bboxes, 'category_id': labels}
+      # print('Before aug ',image.dtype, image.max())
+      if augmentation != None:
+
+          augmented_annotation = augmentation(**annotations)
+          aug_im = augmented_annotation['image']
+          # print('after aug ',aug_im.dtype, aug_im.max())
+          # print(augmented_annotation['bboxes'])
+          return aug_im, np.array(augmented_annotation['bboxes']), np.array(augmented_annotation['category_id'])
+
+      return image, bboxes, labels
 
     @tf.function
     def decode_pad_resize(image_string, pad_height, pad_width, scale):
@@ -59,7 +91,7 @@ def parse_tfrecords(
           tf.tensor: Description
       """
       image = tf.image.decode_jpeg(image_string)
-      image = tf.numpy_function(pad_resize, [image, pad_height, pad_width, scale], Tout=tf.keras.backend.floatx())
+      image = tf.numpy_function(pad_resize, [image, pad_height, pad_width, scale], Tout=tf.uint8)
       #image.set_shape([None, None, 3])
       return image
 
@@ -69,6 +101,9 @@ def parse_tfrecords(
         bboxes = bboxes[~np.all(bboxes==-1, axis=1)]
         # delete labels containing[-1]
         labels = labels[labels>-1]#[0]
+
+        # augment image_batch
+        image_array, bboxes, labels = augment(image_array, bboxes, labels)
 
         # generate raw anchors
         raw_anchors = anchors_for_shape(
@@ -92,25 +127,27 @@ def parse_tfrecords(
               positive_overlap=0.5
           )
 
-        return gt_regression, gt_classification
+        return image_array, gt_regression, gt_classification
 
     @tf.function
     def tf_process_bboxes(xmin_batch, ymin_batch, xmax_batch, ymax_batch, label_batch, image_batch):
 
-        regression_batch = list()
-        classification_batch = list()
+        regression_batch = []
+        classification_batch = []
+        aug_im_batch = []
 
         for index in range(batch_size):
             xmins, ymins, xmaxs, ymaxs, labels = xmin_batch[index], ymin_batch[index], xmax_batch[index], ymax_batch[index], label_batch[index]
             image_array = image_batch[index]
             bboxes = tf.convert_to_tensor([xmins,ymins,xmaxs,ymaxs], dtype=tf.keras.backend.floatx())
             bboxes = tf.transpose(bboxes)
-            gt_regression, gt_classification = tf.numpy_function(process_bboxes, [image_array, bboxes, labels], Tout=[tf.keras.backend.floatx(), tf.keras.backend.floatx()])
+            aug_image, gt_regression, gt_classification = tf.numpy_function(process_bboxes, [image_array, bboxes, labels], Tout=[tf.uint8, tf.keras.backend.floatx(), tf.keras.backend.floatx()])
 
             regression_batch.append(gt_regression)
             classification_batch.append(gt_classification)
+            aug_im_batch.append(aug_image)
 
-        return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(classification_batch)
+        return tf.convert_to_tensor(aug_im_batch), tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(classification_batch)
 
         #return bboxes
         
@@ -154,7 +191,7 @@ def parse_tfrecords(
 
         scale = tf.cast(scale, tf.keras.backend.floatx()) 
 
-        image_batch = tf.map_fn(lambda x: decode_pad_resize(x, max_height, max_width, scale), parsed_example['image/encoded'], dtype=tf.keras.backend.floatx())
+        image_batch = tf.map_fn(lambda x: decode_pad_resize(x, max_height, max_width, scale), parsed_example['image/encoded'], dtype=tf.uint8)
         #print(scale)
 
         xmin_batch = tf.sparse.to_dense(parsed_example['image/object/bbox/xmin']*scale, default_value=-1)
@@ -166,20 +203,14 @@ def parse_tfrecords(
 
         label_batch = tf.sparse.to_dense(parsed_example['image/object/class/label'], default_value=-1)
 
-        # tf.print(xmin_batch.shape)
-        # tf.print(ymin_batch.shape)
-        # tf.print(xmax_batch.shape)
-        # tf.print(ymax_batch.shape)
-        # tf.print(label_batch.shape)
-
-        regression_batch, classification_batch = tf_process_bboxes(xmin_batch, ymin_batch, xmax_batch, ymax_batch, label_batch, image_batch)
-
         # create GT from annotations
-        # augment image_batch
+        aug_image_batch, regression_batch, classification_batch = tf_process_bboxes(xmin_batch, ymin_batch, xmax_batch, ymax_batch, label_batch, image_batch)
+
         # normalize image through preprocessing
+        aug_image_batch = tf.numpy_function(preprocess_fn, [aug_image_batch], Tout=tf.keras.backend.floatx())
 
 
-        return image_batch , {'regression':regression_batch, 'classification':classification_batch}
+        return aug_image_batch, {'regression':regression_batch, 'classification':classification_batch}
 
 
     # dataset = tf.data.Dataset.from_tensor_slices(filenames).repeat(-1)

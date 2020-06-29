@@ -84,7 +84,7 @@ setuptools.setup(
     maintainer_email = 'pk00095@gmail.com',
     cmdclass         = {'build_ext': BuildExtension},
     packages         = setuptools.find_packages(),
-    install_requires = ['cython', 'Pillow', 'opencv-python', 'tqdm'],
+    install_requires = ['cython', 'Pillow', 'opencv-python', 'tqdm', 'albumentations==0.4.5'],
     ext_modules    = cythonize(extensions, exclude=cython_excludes, compiler_directives={'language_level' : "3"}),
     include_dirs=[numpy.get_include()],
     setup_requires = ["cython>=0.28", "numpy>=1.14.0"]

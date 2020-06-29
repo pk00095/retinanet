@@ -12,7 +12,7 @@ def trainer(
     epochs,
     steps_per_epoch,
     snapshot_epoch,
-    training_tfrecords=os.path.join(os.getcwd(),'DATA','train*.tfrecord'),
+    training_tfrecords,
     backbone='resnet50',
     anchor_params=AnchorParameters(),
     min_side=800,

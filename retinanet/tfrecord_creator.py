@@ -211,10 +211,9 @@ def files_to_retain(files, xml_dir):
 
 _NUM_SHARDS = 4
 
-def create_tfrecords(image_dir, xml_dir, outpath=os.path.join(os.getcwd(),'DATA'), outname='train.tfrecord'):
+def create_tfrecords(image_dir, xml_dir, outpath, split_name='train'):
 
-  if not outname.endswith('.tfrecord'):
-    raise ValueError("outname should endwith '.tfrecord', got name %s "%(outname))
+  assert split_name in ('train','test'), '`split_name` shoulbe be `train` or `test`'
 
   image_names = files_to_retain(glob.glob(os.path.join(image_dir,'*.jpg')),xml_dir)
 
@@ -236,7 +235,7 @@ def create_tfrecords(image_dir, xml_dir, outpath=os.path.join(os.getcwd(),'DATA'
   for shard_id in range(_NUM_SHARDS):
     output_filename = os.path.join(
         outpath,
-        '%s-%05d-of-%05d.tfrecord' % ('train', shard_id, _NUM_SHARDS))
+        '%s-%05d-of-%05d.tfrecord' % (split_name, shard_id, _NUM_SHARDS))
 
     with tf.io.TFRecordWriter(output_filename) as tfrecord_writer:
       start_idx = shard_id * num_per_shard
@@ -261,4 +260,4 @@ def create_tfrecords(image_dir, xml_dir, outpath=os.path.join(os.getcwd(),'DATA'
 if __name__ == '__main__':
   image_dir="./aerial-vehicles-dataset/images"
   xml_dir="./aerial-vehicles-dataset/annotations/pascalvoc_xml"
-  main(image_dir, xml_dir, outname='aerial-vehicles-dataset.tfrecord')
+  main(image_dir, xml_dir, outpath=os.path.join(os.getcwd(),'DATA'), outname='aerial-vehicles-dataset.tfrecord')
