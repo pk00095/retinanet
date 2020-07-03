@@ -28,15 +28,17 @@ class Test_Classification(unittest.TestCase):
         create_tfrecords(
             os.path.join(self.dataset, 'images'),
             os.path.join(self.dataset, 'annotations','pascalvoc_xml'),
-            'aerial-vehicles-dataset.tfrecord')
+            os.path.join(os.getcwd(),'DATA'),
+            'train.tfrecord')
 
     def test_trainloop(self):
         from retinanet.train_script import trainer
 
         trainer(
+        training_tfrecords=os.path.join(os.getcwd(),'DATA','train*.tfrecord'),
         num_classes=4,
-        epochs=5,
-        steps_per_epoch=154,
+        epochs=10,
+        steps_per_epoch=500,
         snapshot_epoch=5)
 
 
