@@ -1,3 +1,5 @@
+"""Main script which trains algorithm, and converts trained model to prediction model
+"""
 from tensorflow import keras
 from tensorflow.keras.applications.resnet import preprocess_input as resnet_normalize_image
 import os
@@ -21,10 +23,27 @@ def trainer(
     batch_size=2,
     tensorboard_dir='logs',
     checkpoint_path='checkpoints',
-    prefix='retinanet__{epoch:02d}.h5',
+    prefix='retinanet__{epoch:02d}',
     callbacks=[]):
-
-
+    """This function builds the model and starts the training loop
+    
+    Args:
+        num_classes (int): number of classes in training set
+        epochs (int): number of epochs to train for
+        steps_per_epoch (int): number of steps to run to finish an epoch
+        snapshot_epoch (int): if `snapshot_epoch=2`, then a snapshot is taken at every 2nd consecutive epoch
+        training_tfrecords (str, optional): glob pattern to tfrecords, defaults to `./DATA/train*.tfrecord`
+        backbone (str, optional): One of 'resnet50/101/152'
+        anchor_params (TYPE, optional): An instance of retinanet.AnchorParameters
+        min_side (int, optional): minimum dimension, defaults to 800
+        max_side (int, optional): maximum dimension, defaults to 1333
+        optimizer (TYPE, optional): Optimizer instance which will be passed to model.compile()
+        batch_size (int, optional): Batch-size
+        tensorboard_dir (str, optional): Description
+        checkpoint_path (str, optional): Description
+        prefix (str, optional): Description
+        callbacks (list, optional): Description
+    """
     assert backbone in _BACKBONES, 'Only {} are supported as backbones'.format(_BACKBONES.keys())
     assert isinstance(anchor_params, AnchorParameters), 'please pass a retinanet.preprocessing.AnchorParameters object to arg `anchor_params`'
 
@@ -103,7 +122,18 @@ def freeze(
     score_threshold=0.05,
     max_bboxes=300
     ):
-
+    """This function converts a training model to prediction model
+    
+    Args:
+        checkpoint_path (str): Path to where the checkpoint, which will be converted
+        model_savepath (str): Path to where will be the prediction model be stored
+        anchor_params (TYPE, optional): The instance of retinanet.AnchorParameters, which was used while training
+        allow_class_overlap (bool, optional): if true then nms will be applied classwise
+        apply_nms (bool, optional): Description
+        nms_threshold (float, optional): Description
+        score_threshold (float, optional): Description
+        max_bboxes (int, optional): Description
+    """
     assert isinstance(anchor_params, AnchorParameters), 'please pass a retinanet.preprocessing.AnchorParameters object to arg `anchor_params`'
 
     sizes = anchor_params.sizes 
