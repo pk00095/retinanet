@@ -89,3 +89,6 @@ setuptools.setup(
     include_dirs=[numpy.get_include()],
     setup_requires = ["cython>=0.28", "numpy>=1.14.0"]
 )
+
+# pydoc-markdown ./pydoc-markdown.yml
+# mkdocs build -f pydocs/build/mkdocs.yml -d ../site

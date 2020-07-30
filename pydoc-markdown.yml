@@ -1,0 +1,25 @@
+renderer:
+  type: mkdocs
+  pages:
+  - title: Home
+    name: index
+    contents:
+      - retinanet
+  - title: API Documentation
+    children:
+    - title: Training
+      contents:
+      - retinanet.train_script.trainer
+    - title: Freezing
+      contents:
+      - retinanet.train_script.freeze
+    - title: Prediction
+      contents:
+      - retinanet.predict_script.load_model
+      - retinanet.predict_script.predict
+      - retinanet.predict_script.annotate_image
+
+  output_directory: pydocs/build
+  mkdocs_config:
+    site_name: retinanet Documentation
+    theme: readthedocs

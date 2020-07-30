@@ -1,3 +1,5 @@
+"""Summary
+"""
 from tensorflow import keras
 from tensorflow.keras.applications.resnet import preprocess_input as resnet_normalize_image
 import numpy as np
@@ -44,7 +46,14 @@ STANDARD_COLORS = [
 
 
 def load_model(checkpoint_path):
-
+    """Summary
+    
+    Args:
+        checkpoint_path (string): path to prediction model checkpoint
+    
+    Returns:
+        tf.keras.model.Model: The prediction model
+    """
     pred_model = keras.models.load_model(
         filepath=checkpoint_path,
         compile=False)
@@ -76,7 +85,17 @@ def pad_resize(image, height, width, scale):
 
 
 def predict(model, image_path, min_side=800, max_side=1333):
+    """takes an image, passes through model and returns bboxes, scores, labels
     
+    Args:
+        model (tf.keras.model.Model): the prediction model object
+        image_path (str): path to image to run prediction on
+        min_side (int, optional): minimum dimension, defaults to 800
+        max_side (int, optional): maximum dimension, defaults to 1333
+    
+    Returns:
+        TYPE: bboxes(x1,y1,x2,y2), confidence, labels
+    """
     images = list()
     h_max, w_max = 0,0
 
@@ -104,8 +123,21 @@ def predict(model, image_path, min_side=800, max_side=1333):
 
     return bbox[0].astype(int)/scale, confidence[0], label[0], im
 
-def annotate_image(image_array, bboxes, scores, labels, threshold=0.5, label_dict=None):
-  image = Image.fromarray(image_array)
+def annotate_image(image_path, bboxes, scores, labels, threshold=0.5, label_dict=None):
+  """Summary
+  
+  Args:
+      image_path (str): path to image to annotate
+      bboxes (TYPE): Description
+      scores (TYPE): Description
+      labels (TYPE): Description
+      threshold (float, optional): Description
+      label_dict (None, optional): Description
+  
+  Returns:
+      TYPE: Description
+  """
+  image = Image.open(image_path)
   Imagedraw = ImageDraw.Draw(image)
 
   for box, label, score in zip(bboxes, labels, scores):
