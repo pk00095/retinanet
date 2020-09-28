@@ -10,10 +10,10 @@ currently only pascal-voc xml format is supported
 ## Training on custom data
 
 ### create tfrecords from pascal-voc format
-Edit [tfrecord_creator.py](https://github.com/pk00095/retinanet/blob/master/retinanet/tfrecord_creator.py)
+Use `retinanet_prepare` cli command to create tfrecords from a dataset of pascal-voc xml format. This will create a folder called `DATA` in the present working directory and place the tfrecords inside it.
 
 ### train
-- Use `trainer` function to train on your data [train_script.py](https://github.com/pk00095/retinanet/blob/master/retinanet/train_script.py)
+- Use `retinanet_train` cli command to start training.
 - Use `freeze` function to freeze a trained model from [train_script.py](https://github.com/pk00095/retinanet/blob/master/retinanet/train_script.py)
 
 ### predict
