@@ -85,6 +85,11 @@ setuptools.setup(
     cmdclass         = {'build_ext': BuildExtension},
     packages         = setuptools.find_packages(),
     install_requires = ['cython', 'Pillow', 'opencv-python', 'tqdm'],
+    entry_points={
+      "console_scripts": [
+          "retinanet_prepare=retinanet.cli:main",
+          "retinanet_train=retinanet.train_script:main"]
+    },
     ext_modules    = cythonize(extensions, exclude=cython_excludes, compiler_directives={'language_level' : "3"}),
     include_dirs=[numpy.get_include()],
     setup_requires = ["cython>=0.28", "numpy>=1.14.0"]

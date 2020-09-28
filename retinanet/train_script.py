@@ -9,6 +9,35 @@ from .losses import focal, smooth_l1
 from .tfrecord_parser import parse_tfrecords
 from .preprocessing import AnchorParameters
 
+from segmind_track import KerasCallback
+from segmind_track import set_experiment
+import argparse
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--num_classes", help="the directory containing images", type=str, required=True)
+    parser.add_argument("--ex_id", help="the directory containing images", type=str, required=True)
+    parser.add_argument("--epochs", help="number of epochs to run training", type=int, required=True)
+    parser.add_argument("--steps_per_epoch", help="the number of steps for a complete epoch", type=int, required=True)
+    parser.add_argument("--snapshot_epoch", help="take snapshot every nth epoch", type=int, default=5)
+    parser.add_argument("--batch_size", help="number of training instances per batch", type=int, default=2)
+    parser.add_argument("--min_side", help="number of training instances per batch", type=int, default=800)
+    parser.add_argument("--max_side", help="number of training instances per batch", type=int, default=1333)
+
+    args = parser.parse_args()
+
+    set_experiment(args.ex_id)
+
+    trainer(
+        num_classes=args.num_classes,
+        epochs=args.epochs,
+        steps_per_epoch=args.steps_per_epoch,
+        snapshot_epoch=args.snapshot_epoch,
+        batch_size=args.batch_size,
+        min_side=args.min_side,
+        max_side=args.max_side)
+
+
 def trainer(
     num_classes,
     epochs,
@@ -24,7 +53,7 @@ def trainer(
     tensorboard_dir='logs',
     checkpoint_path='checkpoints',
     prefix='retinanet__{epoch:02d}',
-    callbacks=[]):
+    callbacks=[KerasCallback()]):
     """This function builds the model and starts the training loop
     
     Args:
